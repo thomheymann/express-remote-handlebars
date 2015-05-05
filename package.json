@@ -9,6 +9,10 @@
     "engine",
     "request"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NET-A-PORTER/express-remote-handlebars"
+  },
   "main": "index.js",
   "scripts": {
     "test": "mocha --require should --reporter spec --bail --check-leaks test/"
