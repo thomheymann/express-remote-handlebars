@@ -3,6 +3,7 @@
 var path = require('path');
 var remoteHandlebars = require('..');
 var nock = require('nock');
+var should = require('should');
 
 describe('RemoteHandlebars', function () {
     beforeEach(function () {
@@ -15,6 +16,10 @@ describe('RemoteHandlebars', function () {
         this.strippedLayoutMock = nock('http://mocked')
         .get('/layouts/stripped')
         .replyWithFile(200, path.resolve(__dirname, 'fixtures/views/layouts/stripped.handlebars'));
+
+        this.errorLayoutMock = nock('http://mocked')
+        .get('/layouts/error')
+        .reply(404);
     });
 
     describe('.constructor()', function () {
@@ -80,6 +85,19 @@ describe('RemoteHandlebars', function () {
                 .should.containEql('<body>')
                 .and.not.containEql('<nav>')
                 .and.containEql('<article>');
+
+                done();
+            });
+        });
+
+        it('should pass on request errors', function (done) {
+            var view = path.resolve(__dirname, 'fixtures/views/index.handlebars');
+            var partialsDir = path.resolve(__dirname, 'fixtures/views/partials');
+            var layout = 'http://mocked/layouts/error';
+            remoteHandlebars.create({partialsDir: partialsDir, layout: layout})
+            .render(view, {}, function (error, rendered) {
+                should.exist(error);
+                should.not.exist(rendered);
 
                 done();
             });
