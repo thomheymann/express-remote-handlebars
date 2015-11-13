@@ -142,6 +142,7 @@ RemoteHandlebars.prototype.requestTemplate = function (url, callback) {
     var self = this;
     self.request(url, function (error, response, body) {
         if (error) return callback(error);
+        if (response.statusCode>=400) return callback(new Error('Status \''+response.statusCode+'\' received'));
         var template = self.compile(body);
         callback(null, template);
     });
