@@ -6,10 +6,11 @@ var glob = require('glob');
 var async = require('async');
 var request = require('request');
 var handlebars = require('handlebars');
-var cacheManager = require('cache-manager');
+var LRU = require('stale-lru-cache');
 
 function RemoteHandlebars(options) {
     options || (options = {});
+    var self = this;
 
     // Set options
     this.layout = ('layout' in options) ? options.layout : false;
@@ -20,31 +21,30 @@ function RemoteHandlebars(options) {
     // Someone might want to override these
     this.request = options.request || request;
     this.handlebars = options.handlebars || handlebars;
-    this.cache = options.cache || cacheManager.caching({
-        store: 'memory',
-        ttl: ('maxAge' in options) ? options.maxAge : 60,
-        max: ('size' in options) ? options.size : Infinity
-    }).wrap;
 
-    // Permanent cache for local views
-    this.cacheForever = cacheManager.caching({store: 'memory', ttl: Infinity, max: Infinity}).wrap;
+    // Cache for remote views
+    this.cache = LRU({ max: options.size, cacheControl: options.cacheControl, maxAge: options.maxAge, staleWhileRevalidate: options.staleWhileRevalidate });
+
+    // Local views do not expire
+    this.cacheForever = LRU();
 
     // Expose view engine
     this.engine = this.render.bind(this);
 };
 
-RemoteHandlebars.prototype.render = function (filePath, options, callback) {
+RemoteHandlebars.prototype.render = function render(filePath, options, callback) {
+    var self = this;
+
     var context = options;
     var layout = ('layout' in options) ? options.layout : this.layout;
     var placeholder = options.placeholder || this.placeholder;
     var helpers = options.helpers || this.helpers;
     var partialsDir = options.partialsDir || this.partialsDir;
 
-    var tasks = {view: this.getView.bind(this, filePath, options)};
-    if (layout && typeof layout !== 'function') tasks.layout = this.getLayout.bind(this, layout, options);
-    if (partialsDir) tasks.partials = this.getPartials.bind(this, partialsDir, options);
+    var tasks = { view: viewTask };
+    if (layout) tasks.layout = layoutTask;
+    if (partialsDir) tasks.partials = partialsTask;
 
-    var self = this;
     async.parallel(tasks, function (error, results) {
         if (error) return callback(error);
         var settings = {
@@ -53,18 +53,28 @@ RemoteHandlebars.prototype.render = function (filePath, options, callback) {
             data: options.data
         };
         var rendered = results.view(context, settings);
-        if (typeof layout === 'function') {
-            results.layout = layout;
-        }
         if (results.layout) {
             context[placeholder] = rendered;
             rendered = results.layout(context, settings);
         }
         callback(null, rendered);
     });
+
+    function viewTask(done) {
+        self.getView(filePath, options, done);
+    }
+    function layoutTask(done) {
+        if (typeof layout === 'function') return done(null, layout);
+        self.getLayout(layout, options, done);
+    }
+    function partialsTask(done) {
+        self.getPartials(partialsDir, options, done);
+    }
 };
 
-RemoteHandlebars.prototype.getLayout = function (url, options, callback) {
+RemoteHandlebars.prototype.getLayout = function getLayout(url, options, callback) {
+    var self = this;
+
     if (typeof options === 'function') {
         callback = options;
         options = null;
@@ -87,12 +97,18 @@ RemoteHandlebars.prototype.getLayout = function (url, options, callback) {
     url.headers['Accept'] = 'text/x-handlebars-template';
 
     if (options.cache === false) {
-        return this.requestTemplate(url, callback);
+        return requestTemplate(callback);
     }
-    this.cache(url.url, this.requestTemplate.bind(this, url), callback);
+    this.cache.wrap(url.url, requestTemplate, callback);
+
+    function requestTemplate(done) {
+        self.requestTemplate(url, done);
+    }
 };
 
-RemoteHandlebars.prototype.getView = function (filePath, options, callback) {
+RemoteHandlebars.prototype.getView = function getView(filePath, options, callback) {
+    var self = this;
+
     if (typeof options === 'function') {
         callback = options;
         options = null;
@@ -104,12 +120,18 @@ RemoteHandlebars.prototype.getView = function (filePath, options, callback) {
     if (!callback) throw new Error('RemoteHandlebars.getView expects callback');
 
     if (options.cache === false) {
-        return this.readTemplate(filePath, callback);
+        return readTemplate(callback);
     }
-    this.cacheForever(filePath, this.readTemplate.bind(this, filePath), callback);
+    this.cacheForever.wrap(filePath, readTemplate, callback);
+
+    function readTemplate(done) {
+        self.readTemplate(filePath, done);
+    }
 };
 
-RemoteHandlebars.prototype.getPartials = function (partialsDir, options, callback) {
+RemoteHandlebars.prototype.getPartials = function getPartials(partialsDir, options, callback) {
+    var self = this;
+
     if (typeof options === 'function') {
         callback = options;
         options = null;
@@ -129,26 +151,31 @@ RemoteHandlebars.prototype.getPartials = function (partialsDir, options, callbac
     }
 
     if (options.cache === false) {
-        return this.findTemplates(partialsDir, callback);
+        return findTemplates(callback);
     }
-    this.cacheForever(partialsDir.join(''), this.findTemplates.bind(this, partialsDir), callback);
+    this.cacheForever.wrap(partialsDir.join(''), findTemplates, callback);
+
+    function findTemplates(done) {
+        self.findTemplates(partialsDir, done);
+    }
 };
 
-RemoteHandlebars.prototype.compile = function (template) {
+RemoteHandlebars.prototype.compile = function compile(template) {
     return this.handlebars.compile(template);
 };
 
-RemoteHandlebars.prototype.requestTemplate = function (url, callback) {
+RemoteHandlebars.prototype.requestTemplate = function requestTemplate(url, callback) {
     var self = this;
     self.request(url, function (error, response, body) {
         if (error) return callback(error);
-        if (response.statusCode>=400) return callback(new Error('Status \''+response.statusCode+'\' received'));
+        if (response.statusCode >= 400) return callback(new Error('HTTP status code \''+response.statusCode+'\' received'));
         var template = self.compile(body);
-        callback(null, template);
+        var cacheControl = response.headers['cache-control'];
+        callback(null, template, cacheControl);
     });
 };
 
-RemoteHandlebars.prototype.readTemplate = function (filePath, callback) {
+RemoteHandlebars.prototype.readTemplate = function readTemplate(filePath, callback) {
     var self = this;
     fs.readFile(filePath, 'utf8', function (error, content) {
         if (error) return callback(error);
@@ -157,7 +184,7 @@ RemoteHandlebars.prototype.readTemplate = function (filePath, callback) {
     });
 };
 
-RemoteHandlebars.prototype.findTemplates = function (paths, callback) {
+RemoteHandlebars.prototype.findTemplates = function findTemplates(paths, callback) {
     var self = this;
     async.reduce(paths, {}, function (templates, dir, nextDir) {
         glob('**/*.{handlebars,hbs}', {cwd: dir}, function (error, files) {
