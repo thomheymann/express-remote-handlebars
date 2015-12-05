@@ -1,6 +1,6 @@
 {
   "name": "express-remote-handlebars",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "description": "Handlebars view engine for Express which transparently integrates remotely stored templates into your rendering flow",
   "keywords": [
     "express",
