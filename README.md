@@ -42,7 +42,7 @@ var express = require('express');
 var remoteHandlebars = require('express-remote-handlebars');
 var app = express();
 
-app.engine('handlebars', remoteHandlebars({layout: 'http://localhost/template.handlebars', maxAge: 600}));
+app.engine('handlebars', remoteHandlebars({ layout: 'http://localhost/template.handlebars', cacheControl: 'max-age=600, stale-while-revalidate=86400' }));
 app.set('view engine', 'handlebars');
 
 app.get('/', function (req, res) {
@@ -52,8 +52,9 @@ app.get('/', function (req, res) {
 
 In the example above, when `res.render()` is called the view engine will:
 
-* Read `views/index.handlebars` from disk and download `http://localhost/template.handlebars` (unless already cached)
-* Cache view forever and layout for 10 minutes (configured using `options.maxAge`)
+* Get view and layout from cache if available - Stale items are revalidated in the background (configured using `stale-while-revalidate`)
+* Otherwise read `views/index.handlebars` from disk and download `http://localhost/template.handlebars`
+* Cache local view forever and remote layout for 10 minutes (configured using `max-age`)
 * Render view and layout (view will be inserted in `{{{content}}}` placeholder which is configurable using `options.placeholder`)
 * Send response
 
@@ -67,7 +68,7 @@ var express = require('express');
 var remoteHandlebars = require('express-remote-handlebars');
 var app = express();
 
-app.engine('handlebars', remoteHandlebars({layout: 'http://localhost/template.handlebars', maxAge: 600}));
+app.engine('handlebars', remoteHandlebars({ layout: 'http://localhost/template.handlebars' }));
 app.set('view engine', 'handlebars');
 
 app.get('/', function (req, res) {
@@ -93,7 +94,7 @@ using `getLayout()`:
 
 ```javascript
 var express = require('express');
-var remoteHandlebars = require('express-remote-handlebars').create({maxAge: 600});
+var remoteHandlebars = require('express-remote-handlebars').create({ cacheControl: 'max-age=60, stale-while-revalidate=600' });
 var app = express();
 
 app.engine('handlebars', remoteHandlebars.engine);
@@ -103,7 +104,7 @@ app.get('/users/:id', function (req, res, next) {
     async.parallel([
         function (callback) {
             // Get user
-            User.findOne({id: req.params.id}, callback);
+            User.findOne({ id: req.params.id }, callback);
         },
         function (callback) {
             // Fetch layout
@@ -139,7 +140,21 @@ Constructor to instantiate a new view engine.
 * `options.placeholder` - Name of content placeholder in layout (default: content)
 * `options.helpers` - Object with custom helper functions
 * `options.partialsDir` - Path(s) to partials (default: views/partials/)
-* `options.maxAge` - Cache TTL in seconds (default: 60)
+* `options.cacheControl` - Cache control string (default: `max-age=60, stale-while-revalidate=600`)
+
+    Use `max-age=<seconds>` to define when the item will expire.
+    
+    Combine with `stale-while-revalidate=<seconds>` to set the time window after `max-age` has expired in which the item is
+    marked as stale but still usable. After both `max-age` and `stale-while-revalidate` have expired the item will be
+    deleted from cache.
+
+    Examples:
+
+    * `no-cache, no-store, must-revalidate` - Will be dropped out of cache immediately
+    * `max-age=600, must-revalidate` - Will be cached for 10 minutes and then dropped out of cache
+    * `max-age=600, stale-while-revalidate=86400` - Will be cached for 10 minutes and then revalidated in the background if
+      the item is accessed again within a time window of 1 day
+
 * `options.size` - Maximum number of layouts to cache (default: Infinity)
 
 ##### Examples
@@ -191,7 +206,7 @@ Called by [Express][] when running `res.render()`.
 
 Fetches and compiles a template from remote. 
 
-Template is *temporarily* cached (see `maxAge` and `size`) unless disabled. 
+Template is *temporarily* cached (see `max-age`, `stale-while-revalidate` and `size`) unless disabled. 
 
 ##### Arguments
 
