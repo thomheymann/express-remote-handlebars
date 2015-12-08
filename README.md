@@ -1,6 +1,8 @@
 # Express Remote Handlebars
 
-[![Build Status via Travis CI](https://travis-ci.org/NET-A-PORTER/express-remote-handlebars.svg?branch=master)](https://travis-ci.org/NET-A-PORTER/express-remote-handlebars)
+[![Version](https://img.shields.io/npm/v/express-remote-handlebars.svg)](https://www.npmjs.com/package/express-remote-handlebars)
+[![License](https://img.shields.io/npm/l/express-remote-handlebars.svg)](https://www.npmjs.com/package/express-remote-handlebars)
+[![Build Status](https://travis-ci.org/NET-A-PORTER/express-remote-handlebars.svg?branch=master)](https://travis-ci.org/NET-A-PORTER/express-remote-handlebars)
 
 [Handlebars][] view engine for [Express][] which transparently integrates remotely stored templates
 into your rendering flow.
