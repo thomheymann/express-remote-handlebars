@@ -68,6 +68,22 @@ describe('RemoteHandlebars', function () {
             });
         });
 
+        it('should work correctly with express view cache disabled', function (done) {
+            var view = path.resolve(__dirname, 'fixtures/views/index.handlebars');
+            var partialsDir = path.resolve(__dirname, 'fixtures/views/partials');
+            var layout = 'http://mocked/layouts/default';
+            remoteHandlebars.create({ partialsDir: partialsDir, layout: layout })
+            .render(view, { cache: false }, function (error, rendered) {
+                if (error) return done(error);
+
+                rendered
+                .should.containEql('<body>')
+                .and.containEql('<article>');
+
+                done();
+            });
+        });
+
         it('should allow rendering without layout', function (done) {
             var view = path.resolve(__dirname, 'fixtures/views/index.handlebars');
             var partialsDir = path.resolve(__dirname, 'fixtures/views/partials');

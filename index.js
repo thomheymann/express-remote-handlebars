@@ -97,7 +97,9 @@ RemoteHandlebars.prototype.getLayout = function getLayout(url, options, callback
     url.headers['Accept'] = 'text/x-handlebars-template';
 
     if (options.cache === false) {
-        return requestTemplate(callback);
+        return requestTemplate(function (error, template, cacheControl) {
+            callback(error, template);
+        });
     }
     this.cache.wrap(url.url, requestTemplate, callback);
 
