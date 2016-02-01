@@ -185,7 +185,7 @@ describe('RemoteHandlebars', function () {
             var test = this;
             test.timeout(2000);
 
-            var instance = remoteHandlebars.create({ layout: 'http://mocked/layouts/default', cacheControl: 'max-age=1' });
+            var instance = remoteHandlebars.create({ layout: 'http://mocked/layouts/default', maxAge: 1 });
             instance.getLayout(function (error, template) {
                 if (error) return done(error);
 
@@ -211,8 +211,7 @@ describe('RemoteHandlebars', function () {
             test.timeout(3000);
 
             var layout = 'http://mocked/layouts/cached';
-            var cacheControl = 'max-age=1; stale-while-revalidate=0';
-            var instance = remoteHandlebars.create({ layout: layout, cacheControl: cacheControl });
+            var instance = remoteHandlebars.create({ layout: layout, maxAge: 1, staleWhileRevalidate: 0 });
             instance.getLayout(function (error, template) {
                 if (error) return done(error);
 
@@ -222,23 +221,22 @@ describe('RemoteHandlebars', function () {
                 // 2nd request should use cache (This would fail if response wasn't cached)
                 instance.cache.has(layout).should.be.ok;
                 instance.cache.isStale(layout).should.not.be.ok;
-                instance.cache.isPastStale(layout).should.not.be.ok;
 
                 instance.getLayout(function (error, template) {
                     if (error) return done(error);
 
                     setTimeout(function () {
                         // 3rd request should use stale cache (This would fail if response wasn't cached)
+                        instance.cache.has(layout).should.be.ok;
                         instance.cache.isStale(layout).should.be.ok;
-                        instance.cache.isPastStale(layout).should.not.be.ok;
 
                         instance.getLayout(function (error, template) {
                             if (error) return done(error);
 
                             setTimeout(function () {
                                 // 4th request should fail without pending mocks since cache has expired
+                                instance.cache.has(layout).should.not.be.ok;
                                 instance.cache.isStale(layout).should.not.be.ok;
-                                instance.cache.isPastStale(layout).should.be.ok;
 
                                 instance.getLayout(function (error, template) {
                                     done(error ? undefined : new Error('Template was cached despite being disabled'));
@@ -255,8 +253,7 @@ describe('RemoteHandlebars', function () {
             test.timeout(3000);
 
             var layout = 'http://mocked/layouts/uncached';
-            var cacheControl = 'max-age=600; stale-while-revalidate=0';
-            var instance = remoteHandlebars.create({ layout: layout, cacheControl: cacheControl });
+            var instance = remoteHandlebars.create({ layout: layout, maxAge: 600, staleWhileRevalidate: 0 });
             instance.getLayout(function (error, template) {
                 if (error) return done(error);
 
@@ -266,7 +263,6 @@ describe('RemoteHandlebars', function () {
                 // 2nd request should fail without pending mocks since cache has expired
                 instance.cache.has(layout).should.not.be.ok;
                 instance.cache.isStale(layout).should.not.be.ok;
-                instance.cache.isPastStale(layout).should.not.be.ok;
 
                 instance.getLayout(function (error, template) {
                     done(error ? undefined : new Error('Template was cached despite no-cache headers sent'));

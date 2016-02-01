@@ -23,7 +23,7 @@ function RemoteHandlebars(options) {
     this.handlebars = options.handlebars || handlebars;
 
     // Cache for remote views
-    this.cache = LRU({ max: options.size, cacheControl: options.cacheControl, maxAge: options.maxAge, staleWhileRevalidate: options.staleWhileRevalidate });
+    this.cache = LRU({ maxSize: options.size || options.max || options.maxSize, maxAge: options.maxAge, staleWhileRevalidate: options.staleWhileRevalidate });
 
     // Local views do not expire
     this.cacheForever = LRU();
@@ -97,13 +97,13 @@ RemoteHandlebars.prototype.getLayout = function getLayout(url, options, callback
     url.headers['Accept'] = 'text/x-handlebars-template';
 
     if (options.cache === false) {
-        return requestTemplate(function (error, template, cacheControl) {
+        return requestTemplate(null, function (error, template, cacheControl) {
             callback(error, template);
         });
     }
     this.cache.wrap(url.url, requestTemplate, callback);
 
-    function requestTemplate(done) {
+    function requestTemplate(key, done) {
         self.requestTemplate(url, done);
     }
 };
@@ -122,11 +122,11 @@ RemoteHandlebars.prototype.getView = function getView(filePath, options, callbac
     if (!callback) throw new Error('RemoteHandlebars.getView expects callback');
 
     if (options.cache === false) {
-        return readTemplate(callback);
+        return readTemplate(null, callback);
     }
     this.cacheForever.wrap(filePath, readTemplate, callback);
 
-    function readTemplate(done) {
+    function readTemplate(key, done) {
         self.readTemplate(filePath, done);
     }
 };
@@ -153,11 +153,11 @@ RemoteHandlebars.prototype.getPartials = function getPartials(partialsDir, optio
     }
 
     if (options.cache === false) {
-        return findTemplates(callback);
+        return findTemplates(null, callback);
     }
     this.cacheForever.wrap(partialsDir.join(''), findTemplates, callback);
 
-    function findTemplates(done) {
+    function findTemplates(key, done) {
         self.findTemplates(partialsDir, done);
     }
 };
