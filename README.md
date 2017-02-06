@@ -138,10 +138,6 @@ Constructor to instantiate a new view engine.
 
 ##### Arguments
 
-* `options.layout` - URL or [request object][request] of layout template (default: false)
-* `options.placeholder` - Name of content placeholder in layout (default: content)
-* `options.helpers` - Object with custom helper functions
-* `options.partialsDir` - Path(s) to partials (default: views/partials/)
 * `options.cacheControl` - Cache control string (default: `max-age=60, stale-while-revalidate=600`)
 
     Use `max-age=<seconds>` to define when the item will expire.
@@ -157,6 +153,11 @@ Constructor to instantiate a new view engine.
     * `max-age=600, stale-while-revalidate=86400` - Will be cached for 10 minutes and then revalidated in the background if
       the item is accessed again within a time window of 1 day
 
+* `options.helpers` - Object with custom helper functions
+* `options.layout` - URL or [request object][request] of layout template (default: false)
+* `options.partialsDir` - Path(s) to partials (default: views/partials/)
+* `options.placeholder` - Name of content placeholder in layout (default: content)
+* `options.request (options, callback)` - Function used to request templates *(Default: [request](https://github.com/request/request))*
 * `options.size` - Maximum number of layouts to cache (default: Infinity)
 
 ##### Examples
@@ -195,10 +196,10 @@ Called by [Express][] when running `res.render()`.
 
 * `filePath` - Path to template
 * `options` - Context for template (Merged with `app.locals` and `res.locals`)
-* `options.layout` - URL, [request object][request] or template function
-* `options.helpers` - Object with custom helper functions
-* `options.partialsDir` - Path(s) to partials
 * `options.cache` - Toggle caching (This is set by [Express][] via `app.enable('view cache')` but can also be overridden manually)
+* `options.helpers` - Object with custom helper functions
+* `options.layout` - URL, [request object][request] or template function
+* `options.partialsDir` - Path(s) to partials
 * `callback (error, rendered)` - Called once view with layout has been fully rendered
 
 ---
