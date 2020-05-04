@@ -25,11 +25,11 @@
   "license": "ISC",
   "dependencies": {
     "async": "^1.5.2",
-    "stale-lru-cache": "^5.0.0",
     "glob": "^6.0.4",
     "graceful-fs": "^4.1.2",
-    "handlebars": "^4.0.5",
-    "request": "^2.69.0"
+    "handlebars": "^4.7.6",
+    "request": "^2.69.0",
+    "stale-lru-cache": "^5.0.0"
   },
   "devDependencies": {
     "mocha": "^2.4.5",
